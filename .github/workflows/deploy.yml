@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Deploy
         run: |
-          cd ~/vunt
+          cd /home/vunt
           docker compose pull
           docker compose up -d
           docker image prune -f
