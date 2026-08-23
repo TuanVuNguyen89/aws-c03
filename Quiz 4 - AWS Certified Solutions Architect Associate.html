@@ -1413,6 +1413,158 @@
         display: block !important;
       }
     }
+
+    /* ============================================================
+       Pause / Flag / Show-answer / Progress  (added features)
+       ============================================================ */
+
+    .btn-pause {
+      background: var(--color-card);
+      color: var(--color-primary);
+      border: 2px solid var(--color-border);
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s;
+      flex-shrink: 0;
+    }
+    .btn-pause:hover {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
+    .btn-pause.hidden { display: none; }
+
+    .flag-chip {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #c2410c;
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: 0.2s;
+    }
+    .flag-chip:hover { background: #ffedd5; border-color: #fb923c; }
+
+    .save-indicator {
+      font-size: 12px;
+      color: var(--color-success);
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.4s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .save-indicator.on { opacity: 1; }
+
+    /* --- Pause overlay --- */
+    body.paused .question-area,
+    body.paused .sidebar {
+      filter: blur(7px);
+      pointer-events: none;
+      user-select: none;
+    }
+    .pause-elapsed {
+      margin-top: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 1.5em;
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+    .pause-hint {
+      margin-top: 6px;
+      font-size: 0.85em;
+      color: var(--color-grey);
+    }
+
+    /* --- Resume prompt on the start screen --- */
+    .mode-card-resume {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin: 0 20px 16px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #c2410c;
+      font-size: 0.85em;
+      font-weight: 700;
+    }
+    .mode-card-resume.on { display: flex; }
+
+    /* --- Flag button on the question card --- */
+    .btn-flag {
+      background: transparent;
+      border: none;
+      color: #b8c0c8;
+      cursor: pointer;
+      font-size: 1em;
+      padding: 2px 6px;
+      border-radius: 5px;
+      transition: 0.15s;
+    }
+    .btn-flag:hover { color: #f39c12; background: #fff7ed; }
+    .btn-flag.flagged { color: #e67e22; }
+    .sidebar-item.flagged { background: #fffbf5; }
+    .sidebar-item.flagged .sidebar-item-num { color: #c2410c; }
+
+    /* --- Show answer (peek) --- */
+    .peek-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 14px 0 4px;
+      flex-wrap: wrap;
+    }
+    .btn-peek {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #eef2ff;
+      color: #4338ca;
+      border: 1px solid #c7d2fe;
+      padding: 9px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      transition: 0.2s;
+    }
+    .btn-peek:hover { background: #e0e7ff; border-color: #a5b4fc; }
+    .peek-note {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #4338ca;
+    }
+    .peek-note.on { display: inline-flex; }
+    .peek-answer {
+      margin: 12px 0 0;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+      font-size: 0.95em;
+      font-weight: 600;
+    }
+    .option.peek-correct {
+      border-color: var(--color-success) !important;
+      background: #f0fdf4 !important;
+    }
   </style>
 </head>
 
@@ -1438,6 +1590,34 @@
         </div>
       </div>
 
+      <!-- Pause Modal -->
+      <div id="pause-modal" class="finish-modal" aria-hidden="true">
+        <div class="finish-modal-card" role="dialog" aria-modal="true">
+          <div class="finish-modal-title"><i class="fas fa-pause-circle"></i> Bài làm đang tạm dừng</div>
+          <div class="finish-modal-body">
+            Bạn có thể rời khỏi trang và quay lại làm tiếp bất cứ lúc nào — tiến trình đã được lưu.
+            <div class="pause-elapsed" id="pause-elapsed">0:00:00</div>
+            <div class="pause-hint" id="pause-hint"></div>
+          </div>
+          <div class="finish-modal-actions">
+            <button class="btn-modal-primary" onclick="resumeTest()">Tiếp tục làm bài</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resume Modal -->
+      <div id="resume-modal" class="finish-modal" aria-hidden="true">
+        <div class="finish-modal-card" role="dialog" aria-modal="true">
+          <div class="finish-modal-title"><i class="fas fa-rotate-left"></i> Tiếp tục bài đang làm dở?</div>
+          <div class="finish-modal-body" id="resume-modal-body"></div>
+          <div class="finish-modal-actions">
+            <button class="btn-modal-secondary" onclick="discardSavedAndStart()">Bắt đầu lại</button>
+            <div class="finish-modal-spacer"></div>
+            <button class="btn-modal-primary" onclick="resumeSavedProgress()">Tiếp tục</button>
+          </div>
+        </div>
+      </div>
+
       <!-- START SCREEN -->
       <div id="start-screen">
         <div class="start-header">
@@ -1457,6 +1637,7 @@
                   next question.</p>
               </div>
             </div>
+            <div class="mode-card-resume" id="resume-badge-practice"><i class="fas fa-rotate-left"></i> <span></span></div>
             <div class="mode-card-stats">
               <div class="stat-item"><span class="stat-label"><i class="fas fa-list"></i> Questions</span><span
                   class="stat-value" id="stat-q-practice">0</span></div>
@@ -1475,6 +1656,7 @@
                   passing score.</p>
               </div>
             </div>
+            <div class="mode-card-resume" id="resume-badge-exam"><i class="fas fa-rotate-left"></i> <span></span></div>
             <div class="mode-card-stats">
               <div class="stat-item"><span class="stat-label"><i class="fas fa-list"></i> Questions</span><span
                   class="stat-value" id="stat-q-exam">0</span></div>
@@ -1507,7 +1689,10 @@
             <div class="progress-bar-container">
               <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
             </div>
+            <span class="save-indicator" id="save-indicator"><i class="fas fa-check"></i> Đã lưu</span>
+            <span class="flag-chip" id="flag-count" onclick="gotoNextFlagged()" title="Tới câu được đánh dấu tiếp theo"><i class="fas fa-flag"></i> <span id="flag-count-num">0</span></span>
             <span class="timer hidden" id="timer">00:00</span>
+            <button class="btn-pause hidden" id="btn-pause" onclick="pauseTest()" title="Tạm dừng (P)"><i class="fas fa-pause"></i></button>
             <button class="btn-finish" onclick="finishTest()">Finish test</button>
           </div>
 
@@ -1595,6 +1780,20 @@
     let secondsLeft = 0;
     let examStateKey = "";
 
+    // === PROGRESS / PAUSE STATE ===
+    let quizStarted = false;
+    let isPaused = false;
+    let elapsedSeconds = 0;
+    let autosaveInterval = null;
+    let saveDebounce = null;
+    let QUIZ_KEY = "";
+    let SERVER_PROGRESS = false;
+    let savedProgress = { practice: null, exam: null };
+    let progressPromise = null;
+    let progressLoaded = false;
+    let pendingResume = null;
+    const PROGRESS_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
     function formatTime(s) {
       var h = Math.floor(s / 3600);
       var m = Math.floor((s % 3600) / 60);
@@ -1602,88 +1801,362 @@
       return h + ":" + String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
     }
 
-    function saveExamState() {
-      if (!isExamMode || examFinished || !examStateKey) return;
-      const answers = [];
+    // ---------------------------------------------------------------------
+    // Progress store: saves to the server when the quiz is served by the
+    // portal (per user account), and always mirrors to localStorage so a
+    // standalone copy of this file keeps working offline.
+    // ---------------------------------------------------------------------
+
+    function progressKey(mode) {
+      return "quizprog_" + (QUIZ_KEY || "quiz") + "_" + mode;
+    }
+
+    function currentMode() {
+      return isExamMode ? "exam" : "practice";
+    }
+
+    function collectProgress() {
+      const selections = [], flags = [], checked = [], peeked = [];
       questions.forEach((q, i) => {
         const card = document.getElementById("question-" + i);
-        const sel = card ? Array.from(card.querySelectorAll(".option.selected")).map(o => o.dataset.letter) : [];
-        answers.push(sel);
+        selections.push(card ? Array.from(card.querySelectorAll(".option.selected")).map(o => o.dataset.letter) : []);
+        if (!card) return;
+        if (card.dataset.flagged === "true") flags.push(i);
+        if (card.dataset.checked === "true") checked.push(i);
+        if (card.dataset.peeked === "true") peeked.push(i);
       });
-      try { localStorage.setItem(examStateKey, JSON.stringify({ timeLeft: secondsLeft, currentQ: currentQuestionIndex, answers: answers, timestamp: Date.now() })); } catch (e) { }
+      return {
+        version: 2,
+        mode: currentMode(),
+        order: questions.map(q => q.id),
+        current: currentQuestionIndex,
+        selections: selections,
+        flags: flags,
+        checked: checked,
+        peeked: peeked,
+        timeLeft: secondsLeft,
+        elapsed: elapsedSeconds,
+        paused: isPaused,
+        savedAt: Date.now(),
+      };
     }
 
-    function loadExamState() {
-      if (!examStateKey) return null;
-      try {
-        const raw = localStorage.getItem(examStateKey);
-        if (!raw) return null;
-        const state = JSON.parse(raw);
-        if (Date.now() - state.timestamp > 4 * 60 * 60 * 1000) { localStorage.removeItem(examStateKey); return null; }
-        return state;
-      } catch (e) { return null; }
+    function canSaveProgress() {
+      return quizStarted && !examFinished && !isReviewMode && totalQuestions > 0;
     }
 
-    function clearExamState() {
-      if (examStateKey) { try { localStorage.removeItem(examStateKey); } catch (e) { } }
+    function scheduleSave() {
+      if (!canSaveProgress()) return;
+      if (saveDebounce) return;
+      saveDebounce = setTimeout(function () { saveDebounce = null; saveProgress(); }, 1000);
     }
 
-    function startTimer() {
-      const isCountdown = !!quizData.duration;
+    function saveProgress(useBeacon) {
+      if (!canSaveProgress()) return;
+      const state = collectProgress();
+      try { localStorage.setItem(progressKey(state.mode), JSON.stringify(state)); } catch (e) { }
+      if (!SERVER_PROGRESS) { flashSaved(); return; }
+
+      const url = "/api/progress/" + encodeURIComponent(QUIZ_KEY);
+      const body = JSON.stringify({ mode: state.mode, state: state });
+      if (useBeacon && navigator.sendBeacon) {
+        try {
+          navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
+          return;
+        } catch (e) { /* fall through to fetch */ }
+      }
+      fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: body,
+        keepalive: true,
+      }).then(flashSaved).catch(function () { });
+    }
+
+    // `localOnly` is for the "start over" path: the fresh run's own save is
+    // about to overwrite the same server row, and racing a DELETE against
+    // that PUT could wipe the new snapshot.
+    function clearProgress(mode, localOnly) {
+      const m = mode || currentMode();
+      try { localStorage.removeItem(progressKey(m)); } catch (e) { }
+      savedProgress[m] = null;
+      if (SERVER_PROGRESS && !localOnly) {
+        fetch("/api/progress/" + encodeURIComponent(QUIZ_KEY) + "?mode=" + encodeURIComponent(m), { method: "DELETE" }).catch(function () { });
+      }
+    }
+
+    function isFresh(state) {
+      if (!state || !state.order || !state.order.length) return false;
+      if (state.savedAt && Date.now() - state.savedAt > PROGRESS_MAX_AGE_MS) return false;
+      return true;
+    }
+
+    function hasMeaningfulProgress(state) {
+      if (!isFresh(state)) return false;
+      if ((state.selections || []).some(s => s && s.length)) return true;
+      if ((state.flags || []).length || (state.peeked || []).length) return true;
+      if ((state.current || 0) > 0) return true;
+      return (state.elapsed || 0) > 10;
+    }
+
+    function loadSavedProgress() {
+      const local = { practice: null, exam: null };
+      ["practice", "exam"].forEach(function (m) {
+        try {
+          const raw = localStorage.getItem(progressKey(m));
+          if (raw) { const st = JSON.parse(raw); if (isFresh(st)) local[m] = st; }
+        } catch (e) { }
+      });
+      if (!SERVER_PROGRESS) return Promise.resolve(local);
+      return fetch("/api/progress/" + encodeURIComponent(QUIZ_KEY))
+        .then(function (r) { return r.ok ? r.json() : {}; })
+        .then(function (j) {
+          // The server copy wins — it follows the account across browsers.
+          if (j && isFresh(j.practice)) local.practice = j.practice;
+          if (j && isFresh(j.exam)) local.exam = j.exam;
+          return local;
+        })
+        .catch(function () { return local; });
+    }
+
+    function flashSaved() {
+      const el = document.getElementById("save-indicator");
+      if (!el) return;
+      el.classList.add("on");
+      setTimeout(function () { el.classList.remove("on"); }, 1200);
+    }
+
+    function answeredCount(state) {
+      return (state.selections || []).filter(s => s && s.length).length;
+    }
+
+    function updateResumeBadges() {
+      ["practice", "exam"].forEach(function (m) {
+        const el = document.getElementById("resume-badge-" + m);
+        if (!el) return;
+        const st = savedProgress[m];
+        if (st && hasMeaningfulProgress(st)) {
+          const parts = ["Đang làm dở: " + answeredCount(st) + "/" + (st.order || []).length + " câu"];
+          if (m === "exam" && st.timeLeft) parts.push("còn " + formatTime(st.timeLeft));
+          el.querySelector("span").textContent = parts.join(" · ") + " — bấm để tiếp tục";
+          el.classList.add("on");
+        } else {
+          el.classList.remove("on");
+        }
+      });
+    }
+
+    // One ticker drives both the exam countdown and the elapsed-time counter.
+    // It no-ops while paused, so `elapsedSeconds` stays honest across pauses.
+    function startTicker() {
       const timerEl = document.getElementById("timer");
+      const isCountdown = isExamMode && !!quizData.duration;
       timerEl.classList.remove("hidden");
-      timerEl.textContent = formatTime(secondsLeft);
       timerEl.className = "timer";
-      timerInterval = setInterval(function () {
-        if (isCountdown) {
-          secondsLeft--;
-          if (secondsLeft <= 0) {
-            secondsLeft = 0; clearInterval(timerInterval); timerInterval = null;
-            timerEl.textContent = "00:00"; timerEl.className = "timer critical";
-            alert("⏰ Time's up! Your exam will be submitted automatically.");
-            clearExamState(); finishTestInternal("result"); return;
+      timerEl.textContent = formatTime(isCountdown ? secondsLeft : elapsedSeconds);
+
+      if (!timerInterval) {
+        timerInterval = setInterval(function () {
+          if (isPaused || examFinished) return;
+          elapsedSeconds++;
+          if (isCountdown) {
+            secondsLeft--;
+            if (secondsLeft <= 0) {
+              secondsLeft = 0;
+              clearInterval(timerInterval); timerInterval = null;
+              timerEl.textContent = formatTime(0); timerEl.className = "timer critical";
+              clearProgress("exam");
+              alert("⏰ Time's up! Your exam will be submitted automatically.");
+              finishTestInternal("result");
+              return;
+            }
+            if (secondsLeft <= 60) timerEl.className = "timer critical";
+            else if (secondsLeft <= 300) timerEl.className = "timer urgent";
+            else timerEl.className = "timer";
+            timerEl.textContent = formatTime(secondsLeft);
+          } else {
+            timerEl.textContent = formatTime(elapsedSeconds);
           }
-          if (secondsLeft <= 60) timerEl.className = "timer critical";
-          else if (secondsLeft <= 300) timerEl.className = "timer urgent";
-          else timerEl.className = "timer";
-        } else { secondsLeft++; timerEl.className = "timer"; }
-        timerEl.textContent = formatTime(secondsLeft);
-      }, 1000);
-      setInterval(function () { saveExamState(); }, 5000);
+        }, 1000);
+      }
+      if (!autosaveInterval) {
+        autosaveInterval = setInterval(function () { if (!isPaused) saveProgress(); }, 15000);
+      }
+    }
+
+    // --- Pause / resume ---
+    function pauseTest() {
+      if (!quizStarted || examFinished || isReviewMode || isPaused) return;
+      isPaused = true;
+      document.body.classList.add("paused");
+      const el = document.getElementById("pause-elapsed");
+      if (el) el.textContent = (isExamMode && quizData.duration) ? formatTime(secondsLeft) + " còn lại" : formatTime(elapsedSeconds) + " đã làm";
+      const hint = document.getElementById("pause-hint");
+      if (hint) hint.textContent = answeredCountLive() + "/" + totalQuestions + " câu đã trả lời";
+      document.getElementById("pause-modal").classList.add("visible");
+      document.body.style.overflow = "hidden";
+      saveProgress();
+    }
+
+    function resumeTest() {
+      if (!isPaused) return;
+      isPaused = false;
+      document.body.classList.remove("paused");
+      document.getElementById("pause-modal").classList.remove("visible");
+      document.body.style.overflow = "";
+      startTicker();
+    }
+
+    function answeredCountLive() {
+      let n = 0;
+      questions.forEach(function (q, i) {
+        const card = document.getElementById("question-" + i);
+        if (card && card.querySelectorAll(".option.selected").length) n++;
+      });
+      return n;
     }
 
     function beginQuiz(mode) {
+      // Saved progress is prefetched in init(); wait for it if the user is fast.
+      if (!progressLoaded && progressPromise) {
+        progressPromise.then(function () { beginQuizResolved(mode); });
+        return;
+      }
+      beginQuizResolved(mode);
+    }
+
+    function beginQuizResolved(mode) {
+      const saved = savedProgress[mode];
+      if (hasMeaningfulProgress(saved)) { openResumeModal(mode, saved); return; }
+      startQuiz(mode, null);
+    }
+
+    function openResumeModal(mode, state) {
+      pendingResume = { mode: mode, state: state };
+      const body = document.getElementById("resume-modal-body");
+      if (body) {
+        const bits = [
+          "<p>Bạn có một lượt <strong>" + (mode === "exam" ? "Exam" : "Practice") + "</strong> chưa hoàn thành.</p>",
+          "<p>Đã trả lời <strong>" + answeredCount(state) + "/" + (state.order || []).length + "</strong> câu",
+        ];
+        if (mode === "exam" && state.timeLeft) bits.push(" · còn <strong>" + formatTime(state.timeLeft) + "</strong>");
+        else bits.push(" · đã làm <strong>" + formatTime(state.elapsed || 0) + "</strong>");
+        bits.push(".</p>");
+        body.innerHTML = bits.join("");
+      }
+      document.getElementById("resume-modal").classList.add("visible");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeResumeModal() {
+      document.getElementById("resume-modal").classList.remove("visible");
+      document.body.style.overflow = "";
+    }
+
+    function resumeSavedProgress() {
+      if (!pendingResume) return;
+      const p = pendingResume; pendingResume = null;
+      closeResumeModal();
+      startQuiz(p.mode, p.state);
+    }
+
+    function discardSavedAndStart() {
+      if (!pendingResume) return;
+      const p = pendingResume; pendingResume = null;
+      closeResumeModal();
+      clearProgress(p.mode, true);
+      questions = shuffleArray(quizData.questions || []);
+      totalQuestions = questions.length;
+      rebuildQuestionDom();
+      startQuiz(p.mode, null);
+    }
+
+    function startQuiz(mode, saved) {
       document.getElementById("start-screen").classList.add("hidden");
       document.getElementById("quiz-view").style.display = "flex";
+
       const badge = document.getElementById("mode-badge");
-      if (mode === "exam") {
-        isExamMode = true;
+      isExamMode = mode === "exam";
+      examFinished = false;
+      isPaused = false;
+      quizStarted = true;
+      elapsedSeconds = 0;
+
+      if (isExamMode) {
         document.body.classList.add("exam-mode");
         badge.textContent = "EXAM"; badge.className = "mode-badge exam-badge";
         secondsLeft = quizData.duration ? quizData.duration : 0;
-
-        const saved = loadExamState();
-        if (saved && saved.timeLeft > 0) {
-          if (confirm("A previous exam session was found. Resume?")) {
-            secondsLeft = saved.timeLeft;
-            if (saved.answers) {
-              saved.answers.forEach((letters, i) => {
-                if (!letters || letters.length === 0) return;
-                const card = document.getElementById("question-" + i);
-                if (!card) return;
-                letters.forEach(letter => { const opt = card.querySelector('.option[data-letter="' + letter + '"]'); if (opt) opt.classList.add("selected"); });
-                updateAnsweredDot(i);
-              });
-            }
-            showQuestion(saved.currentQ || 0); startTimer(); return;
-          } else { clearExamState(); }
-        }
-        startTimer();
       } else {
-        badge.className = "mode-badge";
-
+        document.body.classList.remove("exam-mode");
+        badge.textContent = "PRACTICE"; badge.className = "mode-badge";
+        secondsLeft = 0;
       }
-      showQuestion(0);
+
+      const pauseBtn = document.getElementById("btn-pause");
+      if (pauseBtn) pauseBtn.classList.remove("hidden");
+
+      if (saved) applyProgress(saved);
+
+      startTicker();
+      showQuestion(saved ? Math.min(saved.current || 0, totalQuestions - 1) : 0);
+      updateFlagCount();
+      saveProgress();
+    }
+
+    // Rebuilds the question list in the exact order it was saved in, then
+    // replays every selection / flag / checked / peeked marker.
+    function applyProgress(state) {
+      const byId = {};
+      (quizData.questions || []).forEach(function (q) { byId[String(q.id)] = q; });
+      const ordered = [];
+      (state.order || []).forEach(function (id) {
+        const q = byId[String(id)];
+        if (q) { ordered.push(q); delete byId[String(id)]; }
+      });
+      // Anything not in the saved order (e.g. the quiz file gained questions)
+      // is appended so nothing is silently dropped.
+      Object.keys(byId).forEach(function (k) { ordered.push(byId[k]); });
+
+      questions = ordered;
+      totalQuestions = questions.length;
+      rebuildQuestionDom();
+
+      (state.selections || []).forEach(function (letters, i) {
+        if (!letters || !letters.length) return;
+        const card = document.getElementById("question-" + i);
+        if (!card) return;
+        letters.forEach(function (letter) {
+          const opt = card.querySelector('.option[data-letter="' + letter + '"]');
+          if (opt) opt.classList.add("selected");
+        });
+        syncSelectionUi(i);
+      });
+
+      (state.flags || []).forEach(function (i) { setFlag(i, true); });
+
+      (state.checked || []).forEach(function (i) {
+        const btn = document.getElementById("btn-skip-check-" + i);
+        if (btn) checkAnswer(btn);
+      });
+
+      (state.peeked || []).forEach(function (i) { peekAnswer(i, true); });
+
+      elapsedSeconds = state.elapsed || 0;
+      if (isExamMode && typeof state.timeLeft === "number" && state.timeLeft > 0) {
+        secondsLeft = state.timeLeft;
+      }
+    }
+
+    function rebuildQuestionDom() {
+      const questionArea = document.getElementById("question-area");
+      const sidebarList = document.getElementById("sidebar-list");
+      questionArea.innerHTML = "";
+      sidebarList.innerHTML = "";
+      questions.forEach(function (q, i) {
+        questionArea.appendChild(createQuestionCard(q, i));
+        sidebarList.appendChild(createSidebarItem(q, i));
+      });
+      document.getElementById("total-q").textContent = totalQuestions;
     }
 
     function shuffleArray(array) {
@@ -1714,7 +2187,22 @@
         const passStr = quizData.pass_percent + "% correct";
         document.getElementById("stat-pass-score").textContent = passStr;
       }
-      examStateKey = "exam_" + (quizData.quiz_title || "quiz").replace(/[^a-zA-Z0-9]/g, "_") + "_state";
+      // Per-quiz key. quiz_title is identical across all six files, so the
+      // portal key (or quiz_id) is what actually keeps them apart.
+      QUIZ_KEY = quizData.quizKey || ("q" + (quizData.quiz_id || (quizData.quiz_title || "quiz").replace(/[^a-zA-Z0-9]/g, "_")));
+      SERVER_PROGRESS = !!quizData.serverProgress;
+      examStateKey = progressKey("exam");
+
+      if (quizData.pass_percent) {
+        const pp = document.getElementById("stat-pass-practice");
+        if (pp) pp.textContent = quizData.pass_percent + "% correct";
+      }
+
+      progressPromise = loadSavedProgress().then(function (found) {
+        savedProgress = found;
+        progressLoaded = true;
+        updateResumeBadges();
+      });
 
       // Populate start screen title
       var titleBlock = document.getElementById("start-title-block");
@@ -1722,12 +2210,7 @@
         titleBlock.innerHTML = '<div style="font-size:1.4em; font-weight:700; color:var(--color-primary); line-height:1.3;">' + (quizData.quiz_title || '') + '</div>';
       }
 
-      const questionArea = document.getElementById("question-area");
-      const sidebarList = document.getElementById("sidebar-list");
-      questions.forEach((q, index) => {
-        questionArea.appendChild(createQuestionCard(q, index));
-        sidebarList.appendChild(createSidebarItem(q, index));
-      });
+      rebuildQuestionDom();
       // Don't show question 0 yet — wait for beginQuiz()
 
       // Populate right sidebar (practice tests list)
@@ -1758,6 +2241,8 @@
       );
       card.dataset.isMultiAnswer = isMultiAnswer;
 
+      const correctLetters = correctResponses.map((l) => l.toUpperCase()).join(", ");
+
       let correctOptionText = "";
       correctResponses.forEach((letter) => {
         const idx = letter.toLowerCase().charCodeAt(0) - 97;
@@ -1787,10 +2272,15 @@
       });
 
       card.innerHTML = `
-                <div class="q-label"><i class="far fa-flag"></i> <span class="q-num">Question ${index + 1}</span><span class="q-status" id="q-status-${index}"></span></div>
+                <div class="q-label"><button class="btn-flag" id="btn-flag-${index}" onclick="toggleFlag(${index}, event)" title="Đánh dấu để xem lại"><i class="far fa-flag"></i></button> <span class="q-num">Question ${index + 1}</span><span class="q-status" id="q-status-${index}"></span></div>
                 ${isMultiAnswer ? '<div class="multi-answer-hint">💡 This question has multiple correct answers (Select ' + correctResponses.length + ")</div>" : ""}
                 <div class="q-body">${questionText}</div>
                 <ul class="q-answers">${optionsHTML}</ul>
+                <div class="peek-row" id="peek-row-${index}">
+                    <button class="btn-peek" id="btn-peek-${index}" onclick="peekAnswer(${index})"><i class="far fa-eye"></i> Show Answer</button>
+                    <span class="peek-note" id="peek-note-${index}"><i class="fas fa-eye"></i> Đã xem đáp án</span>
+                </div>
+                <div class="peek-answer" id="peek-${index}" style="display:none"><i class="fas fa-key"></i> Đáp án đúng: <strong>${correctLetters}</strong></div>
                 <div class="btn-container">
                     <div class="btn-nav-spacer"></div>
                     <div class="btn-nav-group">
@@ -1855,16 +2345,98 @@
       return item;
     }
 
-    function toggleBookmark(event, index) {
-      event.stopPropagation();
-      const bookmark = document.getElementById("bookmark-" + index);
-      const icon = bookmark.querySelector("i");
-      bookmark.classList.toggle("marked");
-      if (bookmark.classList.contains("marked")) {
-        icon.className = "fas fa-bookmark";
-      } else {
-        icon.className = "far fa-bookmark";
+    // --- Flag ("mark for review") ---
+    // The card button and the sidebar bookmark are two views of one state.
+    function setFlag(index, on) {
+      const card = document.getElementById("question-" + index);
+      if (card) card.dataset.flagged = on ? "true" : "false";
+
+      const btn = document.getElementById("btn-flag-" + index);
+      if (btn) {
+        btn.classList.toggle("flagged", !!on);
+        const i1 = btn.querySelector("i");
+        if (i1) i1.className = on ? "fas fa-flag" : "far fa-flag";
+        btn.title = on ? "Bỏ đánh dấu" : "Đánh dấu để xem lại";
       }
+
+      const bookmark = document.getElementById("bookmark-" + index);
+      if (bookmark) {
+        bookmark.classList.toggle("marked", !!on);
+        const i2 = bookmark.querySelector("i");
+        if (i2) i2.className = on ? "fas fa-bookmark" : "far fa-bookmark";
+      }
+
+      const item = document.getElementById("sidebar-item-" + index);
+      if (item) item.classList.toggle("flagged", !!on);
+
+      updateFlagCount();
+    }
+
+    function toggleFlag(index, event) {
+      if (event) event.stopPropagation();
+      const card = document.getElementById("question-" + index);
+      setFlag(index, !(card && card.dataset.flagged === "true"));
+      scheduleSave();
+    }
+
+    function toggleBookmark(event, index) { toggleFlag(index, event); }
+
+    function flaggedIndexes() {
+      return questions
+        .map(function (q, i) { return i; })
+        .filter(function (i) {
+          const c = document.getElementById("question-" + i);
+          return c && c.dataset.flagged === "true";
+        });
+    }
+
+    function updateFlagCount() {
+      const chip = document.getElementById("flag-count");
+      const num = document.getElementById("flag-count-num");
+      if (!chip || !num) return;
+      const n = flaggedIndexes().length;
+      num.textContent = n;
+      chip.style.display = n > 0 ? "inline-flex" : "none";
+    }
+
+    function gotoNextFlagged() {
+      const list = flaggedIndexes();
+      if (!list.length) return;
+      const next = list.find(function (i) { return i > currentQuestionIndex; });
+      showQuestion(next === undefined ? list[0] : next);
+    }
+
+    // --- Show Answer (peek) ---
+    // Reveals the correct options and the explanation for one question without
+    // grading it. `silent` is used when replaying saved progress.
+    function peekAnswer(index, silent) {
+      const card = document.getElementById("question-" + index);
+      if (!card) return;
+      card.dataset.peeked = "true";
+
+      card.querySelectorAll(".option").forEach(function (opt) {
+        if (opt.dataset.correct !== "true") return;
+        opt.classList.add("peek-correct");
+        const feedbackEl = opt.querySelector(".feedback-text");
+        const feedback = opt.dataset.feedback ? decodeURIComponent(opt.dataset.feedback) : "";
+        if (feedback && feedbackEl) { feedbackEl.innerHTML = feedback; feedbackEl.style.display = "block"; }
+      });
+
+      const box = document.getElementById("peek-" + index);
+      if (box) box.style.display = "block";
+      const btn = document.getElementById("btn-peek-" + index);
+      if (btn) btn.style.display = "none";
+      const note = document.getElementById("peek-note-" + index);
+      if (note) note.classList.add("on");
+
+      const expBox = document.getElementById("explanation-" + index);
+      if (expBox) expBox.style.display = "block";
+      const expBtn = card.querySelector(".btn-exp");
+      if (expBtn) expBtn.style.display = "none";
+
+      processFeedbackLinks();
+      setTimeout(setupImageLightbox, 60);
+      if (!silent) scheduleSave();
     }
 
     function updateAnsweredDot(index) {
@@ -1885,6 +2457,7 @@
       document.getElementById("current-q").textContent = index + 1;
       document.getElementById("progress-bar").style.width = ((index + 1) / totalQuestions * 100) + "%";
       if (sItem) sItem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      scheduleSave();
 
       const btnSkip = document.getElementById("btn-skip-check-" + index);
       const btnNextReview = document.getElementById("btn-next-review-" + index);
@@ -1940,7 +2513,8 @@
           element.classList.add("selected");
         }
         const idx = parseInt(card.dataset.index, 10);
-        if (card.querySelectorAll(".option.selected").length > 0) updateAnsweredDot(idx);
+        syncSelectionUi(idx);
+        scheduleSave();
         return;
       }
 
@@ -1957,24 +2531,35 @@
           element.classList.add("selected");
         }
       }
+      syncSelectionUi(parseInt(card.dataset.index));
+      scheduleSave();
+    }
+
+    // Sidebar dot + Skip/Check button label for one question, derived purely
+    // from the DOM — so it works for a fresh click and for a restored answer.
+    function syncSelectionUi(index) {
+      const card = document.getElementById("question-" + index);
+      if (!card) return;
       const selected = card.querySelectorAll(".option.selected");
-      const index = parseInt(card.dataset.index);
+
       const dot = document.querySelector(`#sidebar-item-${index} .sidebar-item-dot`);
       if (dot) {
         if (selected.length > 0) dot.classList.add("answered");
         else dot.classList.remove("answered");
       }
+
+      if (isExamMode || card.dataset.checked === "true") return;
+
       const btn = document.getElementById("btn-skip-check-" + index);
-      if (btn) {
-        if (selected.length > 0) {
-          btn.querySelector(".skip-text").style.display = "none";
-          btn.querySelector(".check-text").style.display = "inline";
-          btn.classList.add("as-check");
-        } else {
-          btn.querySelector(".skip-text").style.display = "inline";
-          btn.querySelector(".check-text").style.display = "none";
-          btn.classList.remove("as-check");
-        }
+      if (!btn) return;
+      if (selected.length > 0) {
+        btn.querySelector(".skip-text").style.display = "none";
+        btn.querySelector(".check-text").style.display = "inline";
+        btn.classList.add("as-check");
+      } else {
+        btn.querySelector(".skip-text").style.display = "inline";
+        btn.querySelector(".check-text").style.display = "none";
+        btn.classList.remove("as-check");
       }
     }
 
@@ -2083,6 +2668,7 @@
       const statusEl = document.getElementById("status-" + index);
       if (statusEl) { statusEl.textContent = isCorrect ? "Correct" : "Incorrect"; statusEl.className = "sidebar-item-status " + (isCorrect ? "correct" : "incorrect"); }
       card.dataset.checked = "true";
+      scheduleSave();
     }
 
     function showExplanation(button) {
@@ -2107,10 +2693,16 @@
     function openFinishModal() {
       const unanswered = [];
       questions.forEach((q, i) => { const card = document.getElementById("question-" + i); if (card && !card.querySelectorAll(".option.selected").length) unanswered.push(i + 1); });
+      const flagged = flaggedIndexes().map(function (i) { return i + 1; });
       const body = document.getElementById("finish-modal-body");
       if (body) {
-        if (unanswered.length > 0) { body.innerHTML = '<p>You have not answered: <strong>Question ' + unanswered.join(", ") + '</strong>.</p><p>You can still finish now, or review questions.</p>'; }
-        else { body.innerHTML = "<p>You're about to finish the test.</p><p>Where do you want to go next?</p>"; }
+        let html = "";
+        if (unanswered.length > 0) { html += '<p>Chưa trả lời: <strong>Câu ' + unanswered.join(", ") + '</strong>.</p>'; }
+        if (flagged.length > 0) { html += '<p>Đã đánh dấu: <strong>Câu ' + flagged.join(", ") + '</strong>.</p>'; }
+        html += unanswered.length || flagged.length
+          ? "<p>Bạn vẫn có thể nộp bài ngay, hoặc quay lại xem lại các câu trên.</p>"
+          : "<p>You're about to finish the test.</p><p>Where do you want to go next?</p>";
+        body.innerHTML = html;
       }
       document.getElementById("finish-modal").classList.add("visible");
       document.body.style.overflow = "hidden";
@@ -2124,8 +2716,22 @@
     function submitTest() { closeFinishModal(); finishTestInternal("result"); }
 
     function finishTestInternal(dest) {
+      const finishedMode = currentMode();
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-      if (isExamMode) { examFinished = true; clearExamState(); }
+      if (autosaveInterval) { clearInterval(autosaveInterval); autosaveInterval = null; }
+      if (saveDebounce) { clearTimeout(saveDebounce); saveDebounce = null; }
+      if (isExamMode) examFinished = true;
+
+      // The attempt is now in history — the in-flight snapshot is dead weight.
+      clearProgress(finishedMode);
+      quizStarted = false;
+      isPaused = false;
+      document.body.classList.remove("paused");
+      const pauseBtn = document.getElementById("btn-pause");
+      if (pauseBtn) pauseBtn.classList.add("hidden");
+      const pm = document.getElementById("pause-modal");
+      if (pm) pm.classList.remove("visible");
+      updateResumeBadges();
 
       let correct = 0, wrong = 0, skipped = 0;
       questions.forEach((q, i) => {
@@ -2225,6 +2831,11 @@
         const skipCheck = document.getElementById("btn-skip-check-" + i);
         if (skipCheck) skipCheck.classList.add("hidden");
 
+        const peekRow = document.getElementById("peek-row-" + i);
+        if (peekRow) peekRow.style.display = "none";
+        const peekBox = document.getElementById("peek-" + i);
+        if (peekBox) peekBox.style.display = "none";
+
         // Show Next Question button in review mode (except for last question)
         const nextReview = document.getElementById("btn-next-review-" + i);
         if (nextReview) {
@@ -2311,7 +2922,17 @@
       isReviewMode = false;
       isExamMode = false;
       examFinished = false;
+      quizStarted = false;
+      isPaused = false;
+      elapsedSeconds = 0;
+      secondsLeft = 0;
+      document.body.classList.remove("paused");
+      clearProgress("practice");
+      clearProgress("exam");
+      updateResumeBadges();
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      if (autosaveInterval) { clearInterval(autosaveInterval); autosaveInterval = null; }
+      if (saveDebounce) { clearTimeout(saveDebounce); saveDebounce = null; }
       document.body.classList.remove("review-mode");
       document.body.classList.remove("exam-mode");
 
@@ -2319,15 +2940,11 @@
       currentQuestionIndex = 0;
       questions = shuffleArray(questions);
 
-      const questionArea = document.getElementById("question-area");
-      const sidebarList = document.getElementById("sidebar-list");
-      questionArea.innerHTML = "";
-      sidebarList.innerHTML = "";
+      rebuildQuestionDom();
+      updateFlagCount();
 
-      questions.forEach((q, i) => {
-        questionArea.appendChild(createQuestionCard(q, i));
-        sidebarList.appendChild(createSidebarItem(q, i));
-      });
+      const pauseBtn = document.getElementById("btn-pause");
+      if (pauseBtn) pauseBtn.classList.add("hidden");
 
       document.getElementById("retake-container").classList.remove("visible");
       document.querySelector(".btn-finish").style.display = "";
@@ -2463,6 +3080,21 @@
         if (tg) tg.style.right = '320px';
       }
     }
+
+    document.addEventListener("keydown", function (e) {
+      if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "p") { isPaused ? resumeTest() : pauseTest(); }
+      else if (k === "f" && quizStarted && !isPaused) { toggleFlag(currentQuestionIndex); }
+      else if (k === "a" && quizStarted && !isPaused) { peekAnswer(currentQuestionIndex); }
+    });
+
+    // Best-effort flush so closing the tab mid-question doesn't lose the answer.
+    window.addEventListener("beforeunload", function () { saveProgress(true); });
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) saveProgress(true);
+    });
 
     document.addEventListener("DOMContentLoaded", () => {
       init();

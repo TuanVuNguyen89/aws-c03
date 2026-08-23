@@ -61,7 +61,8 @@ app.post("/api/logout", (req, res) => {
 app.get("/dashboard", requireAuth, (req, res) => {
   const list = quizzes.getQuizList();
   const bestScores = db.bestScoresForUser(req.user.id);
-  res.send(render.dashboardPage({ user: req.user, quizzes: list, bestScores }));
+  const inProgress = db.progressSummaryForUser(req.user.id);
+  res.send(render.dashboardPage({ user: req.user, quizzes: list, bestScores, inProgress }));
 });
 
 // --- Quiz taking ---
@@ -69,6 +70,39 @@ app.get("/quiz/:key", requireAuth, (req, res) => {
   const html = quizzes.renderQuizPage(req.params.key);
   if (!html) return res.status(404).send("Quiz not found");
   res.send(html);
+});
+
+// --- In-flight progress (pause / resume) ---
+const MODES = ["practice", "exam"];
+
+app.get("/api/progress/:quizKey", requireAuth, (req, res) => {
+  const key = req.params.quizKey;
+  res.json({
+    practice: db.getProgress(req.user.id, key, "practice"),
+    exam: db.getProgress(req.user.id, key, "exam"),
+  });
+});
+
+// PUT for normal saves, POST for navigator.sendBeacon (which can only POST).
+function saveProgressHandler(req, res) {
+  const b = req.body || {};
+  const mode = MODES.includes(b.mode) ? b.mode : null;
+  if (!mode || !b.state || typeof b.state !== "object") {
+    return res.status(400).json({ error: "Invalid progress payload" });
+  }
+  if (!quizzes.getQuiz(req.params.quizKey)) {
+    return res.status(404).json({ error: "Quiz not found" });
+  }
+  db.saveProgress(req.user.id, req.params.quizKey, mode, b.state);
+  res.json({ ok: true });
+}
+app.put("/api/progress/:quizKey", requireAuth, saveProgressHandler);
+app.post("/api/progress/:quizKey", requireAuth, saveProgressHandler);
+
+app.delete("/api/progress/:quizKey", requireAuth, (req, res) => {
+  const mode = MODES.includes(req.query.mode) ? req.query.mode : null;
+  db.deleteProgress(req.user.id, req.params.quizKey, mode);
+  res.json({ ok: true });
 });
 
 // --- Attempts / history ---
@@ -96,6 +130,7 @@ app.post("/api/attempts", requireAuth, (req, res) => {
     started_at: null,
     answers_json: JSON.stringify(b.answers || []),
   });
+  db.deleteProgress(req.user.id, String(b.quizKey), MODES.includes(b.mode) ? b.mode : null);
   res.json({ ok: true, id });
 });
 

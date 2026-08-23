@@ -325,3 +325,55 @@ pre code {
 .summary-box .stat { text-align: center; }
 .summary-box .stat .val { font-size: 1.6em; font-weight: 800; color: var(--primary); display: block; }
 .summary-box .stat .lbl { font-size: 0.8em; color: var(--grey); text-transform: uppercase; }
+
+/* --- Resume chips on the dashboard (saved, unfinished attempts) --- */
+.resume-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+.resume-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #c2410c;
+  font-size: 0.82em;
+  font-weight: 700;
+  text-decoration: none;
+  transition: 0.15s;
+}
+.resume-chip:hover {
+  background: #ffedd5;
+  border-color: #f97316;
+}
+.resume-chip-count {
+  background: #f97316;
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 0.9em;
+}
+
+/* --- Per-question markers in attempt review --- */
+.q-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.q-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78em;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.q-mark.flagged { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+.q-mark.peeked  { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; }
